@@ -96,6 +96,8 @@ begin
    Add ("SERVER_NAME", Default.Server_Name);
    Add ("SERVER_PORT", Default.Server_Port);
    Add ("HOTPLUG_PORT", Default.Hotplug_Port);
+   Add ("ERROR_LOG_ACTIVATED", Default.Error_Log_Activated);
+   Add ("LOG_ACTIVATED", Default.Log_Activated);
    Add ("LOG_FILE_DIR", Default.Log_File_Directory);
    Add ("LOG_SPLIT_MODE", Default.Log_Split_Mode);
    Add ("ERROR_LOG_SPLIT_MODE", Default.Error_Log_Split_Mode);
@@ -142,5 +144,7 @@ begin
    Add ("SESSION_ID_LENGTH", Default.Session_Id_Length);
    Add ("TLS_TICKET_SUPPORT", Default.TLS_Ticket_Support);
    Add ("CONFIG_DIRECTORY", Default.Config_Directory);
+   Add ("USER_AGENT", Default.User_Agent);
+   Add ("SERVER_HEADER", Default.Server_Header);
    Text_IO.Put_Line ("""""""");
 end Build;

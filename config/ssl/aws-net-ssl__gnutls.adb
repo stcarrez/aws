@@ -37,6 +37,7 @@ with Ada.Directories;
 with Ada.Strings.Hash;
 with Ada.Strings.Hash_Case_Insensitive;
 with Ada.Strings.Equal_Case_Insensitive;
+with Ada.Strings.Maps.Constants;
 with Ada.Text_IO;
 with Ada.Unchecked_Conversion;
 with Ada.Unchecked_Deallocation;
@@ -57,6 +58,7 @@ package body AWS.Net.SSL is
 
    use Interfaces;
    use Ada.Strings;
+   use Ada.Strings.Maps;
 
    use type C.int;
    use type C.unsigned;
@@ -80,6 +82,9 @@ package body AWS.Net.SSL is
      with Atomic_Components;
    --  0 element for current use, 1 element for remain usage after creation new
    --  0 element.
+
+   IP_Address_Characters : constant Character_Set :=
+                             To_Set (".:") or Constants.Decimal_Digit_Set;
 
    function Copy (Item : TSSL.gnutls_datum_t) return TSSL.gnutls_datum_t;
    --  Creates gnutls_datum_t copy
@@ -1068,7 +1073,7 @@ package body AWS.Net.SSL is
    procedure Initialize
      (Config               : in out SSL.Config;
       Certificate_Filename : String;
-      Security_Mode        : Method     := SSLv23;
+      Security_Mode        : Method     := TLS;
       Priorities           : String     := "";
       Ticket_Support       : Boolean    := False;
       Key_Filename         : String     := "";
@@ -1127,8 +1132,8 @@ package body AWS.Net.SSL is
 
          else
             case Security_Mode is
-               when SSLv3 | SSLv3_Server | SSLv3_Client =>
-                  return "NORMAL:-VERS-TLS-ALL:+VERS-SSL3.0";
+               when TLS | TLS_Server | TLS_Client =>
+                  return "NORMAL";
 
                when TLSv1 | TLSv1_Server | TLSv1_Client =>
                   return "NORMAL:-VERS-TLS-ALL:+VERS-TLS1.0";
@@ -1139,8 +1144,6 @@ package body AWS.Net.SSL is
                when TLSv1_2 | TLSv1_2_Server | TLSv1_2_Client =>
                   return "NORMAL:-VERS-TLS-ALL:+VERS-TLS1.2";
 
-               when SSLv23 | SSLv23_Server | SSLv23_Client =>
-                  return "NORMAL:+VERS-TLS-ALL:+VERS-SSL3.0";
             end case;
          end if;
       end Get_Priorities;
@@ -1268,7 +1271,7 @@ package body AWS.Net.SSL is
 
    procedure Initialize_Default_Config
      (Certificate_Filename : String;
-      Security_Mode        : Method   := SSLv23;
+      Security_Mode        : Method   := TLS;
       Priorities           : String   := "";
       Ticket_Support       : Boolean  := False;
       Key_Filename         : String   := "";
@@ -1808,7 +1811,10 @@ package body AWS.Net.SSL is
 
       Session_Transport (Socket);
 
-      if Host /= "" then
+      if Host /= "" and then not (To_Set (Host) <= IP_Address_Characters) then
+         --  GNUTLS does not allow to set physical address text representation
+         --  as server name.
+
          Check_Error_Code
            (TSSL.gnutls_server_name_set
               (Socket.SSL, TSSL.GNUTLS_NAME_DNS, Host'Address, Host'Length));

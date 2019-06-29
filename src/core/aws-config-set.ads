@@ -1,7 +1,7 @@
 ------------------------------------------------------------------------------
 --                              Ada Web Server                              --
 --                                                                          --
---                     Copyright (C) 2000-2018, AdaCore                     --
+--                     Copyright (C) 2000-2019, AdaCore                     --
 --                                                                          --
 --  This library is free software;  you can redistribute it and/or modify   --
 --  it under terms of the  GNU General Public License  as published by the  --
@@ -46,6 +46,9 @@ package AWS.Config.Set is
    --  Set the server protocol family. Family_Inet for IPv4, Family_Inet6 for
    --  IPv6 and Family_Unspec for unspecified protocol family.
 
+   procedure IPv6_Only (O : in out Object; Value : Boolean);
+   --  Set the mode when IPv6 server allows connect only IPv6 clients
+
    procedure Server_Host (O : in out Object; Value : String);
    --  This is the server host as set by the HTTP object declaration
 
@@ -74,6 +77,9 @@ package AWS.Config.Set is
 
    procedure Server_Priority (O : in out Object; Value : System.Any_Priority);
    --  Set the priority used by the HTTP and WebSockets servers
+
+   procedure Server_Header (O : in out Object; Value : String);
+   --  Set the server header (value used by the Server: request header)
 
    ----------------
    -- Connection --
@@ -139,6 +145,9 @@ package AWS.Config.Set is
    -- Log --
    ---------
 
+   procedure Log_Activated (O : in out Object; Value : Boolean);
+   --  Whether the default log should be activated
+
    procedure Log_File_Directory (O : in out Object; Value : String);
    --  This point to the directory where log files will be written. The
    --  directory returned will end with a directory separator.
@@ -187,6 +196,9 @@ package AWS.Config.Set is
    --  cs(<header>) Any header field name sent from client to server
    --  sc(<header>) Any header field name sent from server to client
    --  x-<appfield> Any application defined field name
+
+   procedure Error_Log_Activated (O : in out Object; Value : Boolean);
+   --  Whether the error log should be activated
 
    procedure Error_Log_Filename_Prefix (O : in out Object; Value : String);
    --  This is the prefix to use for the log filename
@@ -289,7 +301,8 @@ package AWS.Config.Set is
    --  Enable security (HTTPS/SSL) if Value is True
 
    procedure Certificate (O : in out Object; Filename : String);
-   --  Set the certificate to be used with the secure server
+   --  Set the certificate filename in PEM format to be used with the secure
+   --  server.
 
    procedure Key (O : in out Object; Filename : String);
    --  Set the key to be used with the secure server
@@ -382,6 +395,9 @@ package AWS.Config.Set is
    procedure WebSocket_Message_Queue_Size (Value : Positive);
    --  This is the size of the queue containing incoming messages
 
+   procedure WebSocket_Send_Message_Queue_Size (Value : Positive);
+   --  This is the size of the queue containing messages to send
+
    procedure WebSocket_Origin (Value : String);
    --  This is regular expression to restrict WebSocket to a specific origin
 
@@ -394,6 +410,9 @@ package AWS.Config.Set is
 
    procedure Input_Line_Size_Limit (Value : Positive);
    --  Maximum length of an HTTP parameter
+
+   procedure User_Agent (Value : String);
+   --  Set the user agent for client request heaser
 
    procedure Parameter
      (Config        : in out Object;

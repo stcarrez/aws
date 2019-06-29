@@ -74,8 +74,8 @@ package body AWS.Net.SSL is
    package Locking is
 
       procedure Initialize;
-      --  Initialize OpenSSL locking callbacks, this makes OpenSSL
-      --  implementation thread safe.
+      --  Initialize OpenSSL version less 1.1 locking callbacks, this makes
+      --  OpenSSL implementation thread safe.
 
    end Locking;
 
@@ -180,7 +180,7 @@ package body AWS.Net.SSL is
    Data_Index     : C.int;
    --  Application specific data's index
 
-   Max_Overhead : Stream_Element_Count range 0 .. 2**15 := 78 with Atomic;
+   Max_Overhead : Stream_Element_Count range 0 .. 2**15 := 81 with Atomic;
    for Max_Overhead'Size use 16;
    --  Need size limitation because Stream_Element_Count is 64 bit and could
    --  not guarantee Atomic on 32 bit platform.
@@ -358,7 +358,7 @@ package body AWS.Net.SSL is
    procedure Ciphers (Cipher : not null access procedure (Name : String)) is
       use type C.Strings.chars_ptr;
       Name : C.Strings.chars_ptr;
-      Ctx  : constant TSSL.SSL_CTX := TSSL.SSL_CTX_new (TSSL.SSLv23_method);
+      Ctx  : constant TSSL.SSL_CTX := TSSL.SSL_CTX_new (TSSL.TLS_method);
       SSL  : SSL_Handle;
    begin
       Error_If (Ctx = TSSL.Null_CTX);
@@ -544,9 +544,9 @@ package body AWS.Net.SSL is
 
    procedure Free (Key : in out Private_Key) is
    begin
-      if Key /= Private_Key (TSSL.Null_Pointer) then
-         TSSL.RSA_free (TSSL.Private_Key (Key));
-         Key := Private_Key (TSSL.Null_Pointer);
+      if Key /= Null_Private_Key then
+         EVP_PKEY_free (Key);
+         Key := Null_Private_Key;
       end if;
    end Free;
 
@@ -732,7 +732,7 @@ package body AWS.Net.SSL is
    procedure Initialize
      (Config               : in out SSL.Config;
       Certificate_Filename : String;
-      Security_Mode        : Method     := SSLv23;
+      Security_Mode        : Method     := TLS;
       Priorities           : String     := "";
       Ticket_Support       : Boolean    := False;
       Key_Filename         : String     := "";
@@ -758,7 +758,7 @@ package body AWS.Net.SSL is
 
    procedure Initialize_Default_Config
      (Certificate_Filename : String;
-      Security_Mode        : Method   := SSLv23;
+      Security_Mode        : Method   := TLS;
       Priorities           : String   := "";
       Ticket_Support       : Boolean  := False;
       Key_Filename         : String   := "";
@@ -811,7 +811,7 @@ package body AWS.Net.SSL is
    ----------
 
    function Load (Filename : String) return Private_Key is
-      Key  : aliased TSSL.Private_Key := TSSL.RSA_new;
+      Key  : aliased Private_Key := EVP_PKEY_new;
       IO   : constant TSSL.BIO_Access := TSSL.BIO_new (TSSL.BIO_s_file);
       Name : aliased C.char_array := C.To_C (Filename);
       Pwd  : aliased C.char_array :=
@@ -819,20 +819,20 @@ package body AWS.Net.SSL is
    begin
       if TSSL.BIO_read_filename
            (IO, C.Strings.To_Chars_Ptr (Name'Unchecked_Access)) = 0
-        or else TSSL.PEM_read_bio_RSAPrivateKey
+        or else PEM_read_bio_PrivateKey
                   (IO, Key'Access, null,
-                   (if Pwd'Length = 1       -- 1 means just the nul char
+                   (if Pwd'Length <= 1       -- 1 means just the nul char
                     then TSSL.Null_Pointer
                     else Pwd'Address)) /= Key
       then
          TSSL.BIO_free (IO);
-         TSSL.RSA_free (Key);
+         EVP_PKEY_free (Key);
          File_Error ("Key", Filename);
       end if;
 
       TSSL.BIO_free (IO);
 
-      return Private_Key (Key);
+      return Key;
    end Load;
 
    ---------------
@@ -1168,9 +1168,7 @@ package body AWS.Net.SSL is
 
    function Session_Reused (Socket : Socket_Type) return Boolean is
       use TSSL;
-      Rc : constant C.long :=
-             SSL_ctrl -- SSL_session_reused is macro in OpenSSL sources
-               (Socket.SSL, SSL_CTRL_GET_SESSION_REUSED, 0, Null_Pointer);
+      Rc : constant C.int := SSL_session_reused (Socket.SSL);
    begin
       if Rc = 0 then
          return False;
@@ -1442,7 +1440,7 @@ package body AWS.Net.SSL is
       Hash : Hash_Method) return Stream_Element_Array
    is
       use TSSL;
-      use type C.unsigned;
+      use type C.unsigned, C.size_t;
 
       To_EVP_MD : constant array (Hash_Method) of EVP_MD :=
                     (MD5    => EVP_md5,
@@ -1452,39 +1450,41 @@ package body AWS.Net.SSL is
                      SHA384 => EVP_sha384,
                      SHA512 => EVP_sha512);
 
-      To_NID : constant array (Hash_Method) of C.int :=
-                 (MD5    => NID_md5,
-                  SHA1   => NID_sha1,
-                  SHA224 => NID_sha224,
-                  SHA256 => NID_sha256,
-                  SHA384 => NID_sha384,
-                  SHA512 => NID_sha512);
+      Md     : constant EVP_MD := To_EVP_MD (Hash);
+      D_Ctx  : constant EVP_MD_CTX := EVP_MD_CTX_new;
+      Dig    : Stream_Element_Array
+                 (1 .. Stream_Element_Offset (EVP_MD_size (Md)));
+      D_Size : aliased C.unsigned := Dig'Length;
 
-      Md  : constant EVP_MD := To_EVP_MD (Hash);
-      Ctx : constant EVP_MD_CTX := EVP_MD_CTX_create;
-      Dig : Stream_Element_Array
-              (1 .. Stream_Element_Offset (EVP_MD_size (Md)));
-      Res : Stream_Element_Array
-              (1 .. Stream_Element_Offset (RSA_size (RSA (Key))));
-      Len : aliased C.unsigned := Dig'Length;
+      S_Ctx  : EVP_PKEY_CTX;
+      Res    : Stream_Element_Array
+                 (1 .. Stream_Element_Offset (EVP_PKEY_size (Key)));
+      S_Size : aliased C.size_t := Res'Length;
    begin
-      Error_If (EVP_DigestInit (Ctx, Md) = 0);
-      Error_If (EVP_DigestUpdate (Ctx, Ptr, Size) = 0);
-      Error_If (EVP_DigestFinal (Ctx, Dig'Address, Len'Access) = 0);
+      Error_If (EVP_DigestInit (D_Ctx, Md) = 0);
+      Error_If (EVP_DigestUpdate (D_Ctx, Ptr, Size) = 0);
+      Error_If (EVP_DigestFinal (D_Ctx, Dig'Address, D_Size'Access) = 0);
+      EVP_MD_CTX_free (D_Ctx);
 
-      if Len /= Dig'Length then
+      if D_Size /= Dig'Length then
          raise Program_Error with "Digest length error";
       end if;
 
-      EVP_MD_CTX_destroy (Ctx);
-
-      Len := Res'Length;
+      S_Ctx := SSL.EVP_PKEY_CTX_new (Key, ENGINE (Null_Pointer));
+      Error_If (S_Ctx = EVP_PKEY_CTX (Null_Pointer));
+      Error_If (EVP_PKEY_sign_init (S_Ctx) <= 0);
+      Error_If (EVP_PKEY_CTX_set_signature_md (S_Ctx, To_EVP_MD (Hash)) <= 0);
       Error_If
-        (RSA_sign
-           (To_NID (Hash), Dig'Address, Dig'Length, Res'Address, Len'Access,
-            RSA (Key)) /= 1);
+        (EVP_PKEY_sign
+           (S_Ctx, Res'Address, S_Size'Access, Dig'Address, Dig'Length) <= 0);
+      EVP_PKEY_CTX_free (S_Ctx);
 
-      return Res;
+      if S_Size > Res'Length then
+         raise Program_Error with
+           "Signature length error " & S_Size'Img & Res'Length'Img;
+      end if;
+
+      return Res (1 .. Stream_Element_Offset (S_Size));
    end Signature;
 
    -----------------
@@ -1821,6 +1821,7 @@ package body AWS.Net.SSL is
 
    end Locking;
 
+
    ---------------------------------
    -- Start_Parameters_Generation --
    ---------------------------------
@@ -2006,9 +2007,9 @@ package body AWS.Net.SSL is
          procedure Set_Certificate;
 
          Methods : constant array (Method) of Meth_Func :=
-                     (SSLv23         => TSSL.SSLv23_method'Access,
-                      SSLv23_Server  => TSSL.SSLv23_server_method'Access,
-                      SSLv23_Client  => TSSL.SSLv23_client_method'Access,
+                     (TLS            => TSSL.TLS_method'Access,
+                      TLS_Server     => TSSL.TLS_server_method'Access,
+                      TLS_Client     => TSSL.TLS_client_method'Access,
                       TLSv1          => TSSL.TLSv1_method'Access,
                       TLSv1_Server   => TSSL.TLSv1_server_method'Access,
                       TLSv1_Client   => TSSL.TLSv1_client_method'Access,
@@ -2017,10 +2018,7 @@ package body AWS.Net.SSL is
                       TLSv1_1_Client => TSSL.TLSv1_1_client_method'Access,
                       TLSv1_2        => TSSL.TLSv1_2_method'Access,
                       TLSv1_2_Server => TSSL.TLSv1_2_server_method'Access,
-                      TLSv1_2_Client => TSSL.TLSv1_2_client_method'Access,
-                      SSLv3          => TSSL.SSLv23_method'Access,
-                      SSLv3_Server   => TSSL.SSLv23_server_method'Access,
-                      SSLv3_Client   => TSSL.SSLv23_client_method'Access);
+                      TLSv1_2_Client => TSSL.TLSv1_2_client_method'Access);
 
          Context : TSSL.SSL_CTX;
          Dummy   : C.long;
@@ -2046,7 +2044,7 @@ package body AWS.Net.SSL is
             end if;
 
             Error_If
-              (TSSL.SSL_CTX_use_RSAPrivateKey (Context, TSSL.RSA (PK)) /= 1);
+              (TSSL.SSL_CTX_use_PrivateKey (Context, TSSL.EVP_PKEY (PK)) /= 1);
             Error_If (TSSL.SSL_CTX_check_private_key (Ctx => Context) /= 1);
 
             if Exchange_Certificate then
@@ -2099,11 +2097,7 @@ package body AWS.Net.SSL is
 
          if not Ticket_Support then
             Error_If
-              (TSSL.SSL_CTX_ctrl
-                 (Ctx  => Context,
-                  Cmd  => TSSL.SSL_CTRL_OPTIONS,
-                  Larg => TSSL.SSL_OP_NO_TICKET,
-                  Parg => TSSL.Null_Pointer) = 0);
+              (TSSL.SSL_CTX_set_options (Context, TSSL.SSL_OP_NO_TICKET) = 0);
          end if;
 
          Error_If
@@ -2360,14 +2354,14 @@ package body AWS.Net.SSL is
    function Version (Build_Info : Boolean := False) return String is
       use TSSL;
       Result : constant String :=
-                 C.Strings.Value (SSLeay_version_info (SSLEAY_VERSION));
+                 C.Strings.Value (OpenSSL_version (OPENSSL_VERSION0));
    begin
       if Build_Info then
          return Result & ASCII.LF
-           & C.Strings.Value (SSLeay_version_info (SSLEAY_CFLAGS)) & ASCII.LF
-           & C.Strings.Value (SSLeay_version_info (SSLEAY_BUILT_ON)) & ASCII.LF
-           & C.Strings.Value (SSLeay_version_info (SSLEAY_PLATFORM)) & ASCII.LF
-           & C.Strings.Value (SSLeay_version_info (SSLEAY_DIR));
+           & C.Strings.Value (OpenSSL_version (OPENSSL_CFLAGS)) & ASCII.LF
+           & C.Strings.Value (OpenSSL_version (OPENSSL_BUILT_ON)) & ASCII.LF
+           & C.Strings.Value (OpenSSL_version (OPENSSL_PLATFORM)) & ASCII.LF
+           & C.Strings.Value (OpenSSL_version (OPENSSL_DIR));
       else
          return Result;
       end if;
@@ -2389,9 +2383,12 @@ begin
       null;
    end if;
 
-   TSSL.SSL_load_error_strings;
-   TSSL.SSL_library_init;
    Locking.Initialize;
+
+   if TSSL.SSL_library_init = 0 then
+      raise Program_Error with "Unable to init OpenSSL";
+   end if;
+
    Init_Random;
 
    Data_Index :=

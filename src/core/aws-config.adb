@@ -1,7 +1,7 @@
 ------------------------------------------------------------------------------
 --                              Ada Web Server                              --
 --                                                                          --
---                     Copyright (C) 2000-2018, AdaCore                     --
+--                     Copyright (C) 2000-2019, AdaCore                     --
 --                                                                          --
 --  This library is free software;  you can redistribute it and/or modify   --
 --  it under terms of the  GNU General Public License  as published by the  --
@@ -246,6 +246,15 @@ package body AWS.Config is
       return To_String (O.P (Down_Image).Str_Value);
    end Down_Image;
 
+   -------------------------
+   -- Error_Log_Activated --
+   -------------------------
+
+   function Error_Log_Activated (O : Object) return Boolean is
+   begin
+      return O.P (Error_Log_Activated).Bool_Value;
+   end Error_Log_Activated;
+
    -------------------------------
    -- Error_Log_Filename_Prefix --
    -------------------------------
@@ -350,6 +359,15 @@ package body AWS.Config is
       return Process_Options (Input_Line_Size_Limit).Pos_Value;
    end Input_Line_Size_Limit;
 
+   ---------------
+   -- IPv6_Only --
+   ---------------
+
+   function IPv6_Only (O : Object) return Boolean is
+   begin
+      return O.P (IPv6_Only).Bool_Value;
+   end IPv6_Only;
+
    -----------------------------
    -- Is_WebSocket_Origin_Set --
    -----------------------------
@@ -415,6 +433,15 @@ package body AWS.Config is
       Read_If_Present (Ini.Program_Ini_File (Full_Path => True));
       Read_If_Present (Ini.Program_Ini_File (Full_Path => False));
    end Load_Config;
+
+   -------------------
+   -- Log_Activated --
+   -------------------
+
+   function Log_Activated (O : Object) return Boolean is
+   begin
+      return O.P (Log_Activated).Bool_Value;
+   end Log_Activated;
 
    -----------------------------------------
    -- Log_Extended_Fields_Generic_Iterate --
@@ -608,6 +635,15 @@ package body AWS.Config is
    begin
       return O.P (Send_Timeout).Dur_Value;
    end Send_Timeout;
+
+   -------------------
+   -- Server_Header --
+   -------------------
+
+   function Server_Header (O : Object) return String is
+   begin
+      return To_String (O.P (Server_Header).Str_Value);
+   end Server_Header;
 
    -----------------
    -- Server_Host --
@@ -807,6 +843,15 @@ package body AWS.Config is
       return O.P (Upload_Size_Limit).Pos_Value;
    end Upload_Size_Limit;
 
+   ----------------
+   -- User_Agent --
+   ----------------
+
+   function User_Agent return String is
+   begin
+      return To_String (Process_Options (User_Agent).Str_Value);
+   end User_Agent;
+
    ----------------------------------
    -- WebSocket_Message_Queue_Size --
    ----------------------------------
@@ -842,6 +887,15 @@ package body AWS.Config is
    begin
       return Process_Options (WebSocket_Priority).Nat_Value;
    end WebSocket_Priority;
+
+   ---------------------------------------
+   -- WebSocket_Send_Message_Queue_Size --
+   ---------------------------------------
+
+   function WebSocket_Send_Message_Queue_Size return Positive is
+   begin
+      return Process_Options (WebSocket_Send_Message_Queue_Size).Pos_Value;
+   end WebSocket_Send_Message_Queue_Size;
 
    -----------------------
    -- WebSocket_Timeout --

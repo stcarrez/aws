@@ -1,7 +1,7 @@
 ------------------------------------------------------------------------------
 --                              Ada Web Server                              --
 --                                                                          --
---                     Copyright (C) 2000-2018, AdaCore                     --
+--                     Copyright (C) 2000-2019, AdaCore                     --
 --                                                                          --
 --  This library is free software;  you can redistribute it and/or modify   --
 --  it under terms of the  GNU General Public License  as published by the  --
@@ -76,6 +76,9 @@ package AWS.Config is
    --  Server protocol family. Family_Inet for IPv4, Family_Inet6 for IPv6 and
    --  Family_Unspec for unspecified protocol family.
 
+   function IPv6_Only (O : Object) return Boolean with Inline;
+   --  IPv6 server accepts only IPv6 connections
+
    function Server_Host (O : Object) return String with Inline;
    --  This is the server host. Can be used if the computer has a more than
    --  one IP address. It is possible to have two servers at the same port
@@ -103,6 +106,9 @@ package AWS.Config is
    function Server_Priority (O : Object) return System.Any_Priority
      with Inline;
    --  Returns the priority used by the HTTP and WebSockets servers
+
+   function Server_Header (O : Object) return String with Inline;
+   --  Returns the Server header value
 
    ----------------
    -- Connection --
@@ -153,7 +159,7 @@ package AWS.Config is
    --  HTTP lines stack size
 
    function Reuse_Address (O : Object) return Boolean with Inline;
-   --  Returns true if bind is allowed to reuse and address (not waiting for
+   --  Returns true if bind is allowed to reuse an address (not waiting for
    --  the delay between two bind to the same port).
 
    ----------
@@ -184,6 +190,9 @@ package AWS.Config is
    -- Log --
    ---------
 
+   function Log_Activated (O : Object) return Boolean with Inline;
+   --  Whether the default log should be activated
+
    function Log_File_Directory (O : Object) return String with Inline;
    --  This point to the directory where log files will be written. The
    --  directory returned will end with a directory separator.
@@ -205,6 +214,9 @@ package AWS.Config is
    function Log_Extended_Fields_Length (O : Object) return Natural with Inline;
    --  Returns the number of extended http log fileds identifiers.
    --  If returned value is zero then http log is not extended.
+
+   function Error_Log_Activated (O : Object) return Boolean with Inline;
+   --  Whether the error log should be activated
 
    function Error_Log_Filename_Prefix (O : Object) return String with Inline;
    --  This is the prefix to use for the log filename
@@ -393,6 +405,9 @@ package AWS.Config is
    function WebSocket_Message_Queue_Size return Positive with Inline;
    --  This is the size of the queue containing incoming messages
 
+   function WebSocket_Send_Message_Queue_Size return Positive with Inline;
+   --  This is the size of the queue containing messages to send
+
    function Max_WebSocket return Positive with Inline;
    --  The maximum number of simultaneous WebSocket opened. Note that that
    --  there could be more WebSocket registered when counting the closing
@@ -415,6 +430,9 @@ package AWS.Config is
    function WebSocket_Priority return System.Any_Priority;
    --  Set the priority used by the WebSocket service
 
+   function User_Agent return String with Inline;
+   --  Returns the User_Agent header value
+
 private
 
    use Ada.Strings.Unbounded;
@@ -432,9 +450,11 @@ private
       Admin_Password,
       Admin_Realm,
       Protocol_Family,
+      IPv6_Only,
       Server_Host,
       Server_Port,
       Server_Priority,
+      Server_Header,
       Security,
       Certificate,
       Key,
@@ -459,8 +479,10 @@ private
       Log_Extended_Fields,
       Log_Split_Mode,
       Log_Size_Limit,
+      Log_Activated,
       Error_Log_Filename_Prefix,
       Error_Log_Split_Mode,
+      Error_Log_Activated,
       Upload_Directory,
       Upload_Size_Limit,
       Session,
@@ -493,6 +515,7 @@ private
       Session_Cleaner_Priority,
       Service_Priority,
       Config_Directory,
+      User_Agent,
       Transient_Cleanup_Interval,
       Transient_Lifetime,
       Input_Line_Size_Limit,
@@ -500,6 +523,7 @@ private
       Max_WebSocket_Handler,
       MIME_Types,
       WebSocket_Message_Queue_Size,
+      WebSocket_Send_Message_Queue_Size,
       WebSocket_Origin,
       WebSocket_Priority,
       Max_WebSocket,
@@ -625,11 +649,17 @@ private
                            Log_Size_Limit                  =>
                              (Nat, Default.Log_Size_Limit),
 
+                           Log_Activated                   =>
+                             (Bool, Default.Log_Activated),
+
                            Error_Log_Filename_Prefix       =>
                              (Str, +Default.Error_Log_Filename_Prefix),
 
                            Error_Log_Split_Mode            =>
                              (Str, +Default.Error_Log_Split_Mode),
+
+                           Error_Log_Activated             =>
+                             (Bool, Default.Error_Log_Activated),
 
                            Upload_Directory                =>
                              (Dir, +Default.Upload_Directory),
@@ -661,6 +691,9 @@ private
                            Protocol_Family                 =>
                              (Str, +Default.Protocol_Family),
 
+                           IPv6_Only                       =>
+                             (Bool, Default.IPv6_Only),
+
                            Server_Host                     =>
                              (Str, Null_Unbounded_String),
 
@@ -669,6 +702,9 @@ private
 
                            Server_Priority                 =>
                              (Nat, Default.Server_Priority),
+
+                           Server_Header                   =>
+                             (Str, +Default.Server_Header),
 
                            Hotplug_Port                    =>
                              (Pos, Default.Hotplug_Port),
@@ -755,6 +791,9 @@ private
                         Config_Directory             =>
                           (Str, +Default.Config_Directory),
 
+                        User_Agent                   =>
+                          (Str, +Default.User_Agent),
+
                         Transient_Cleanup_Interval   =>
                           (Dur, Default.Transient_Cleanup_Interval),
 
@@ -778,6 +817,9 @@ private
 
                         WebSocket_Message_Queue_Size =>
                           (Pos, Default.WebSocket_Message_Queue_Size),
+
+                        WebSocket_Send_Message_Queue_Size =>
+                          (Pos, Default.WebSocket_Send_Message_Queue_Size),
 
                         WebSocket_Origin             =>
                           (Regexp, False, Pattern => <>,

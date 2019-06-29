@@ -1,7 +1,7 @@
 ------------------------------------------------------------------------------
 --                              Ada Web Server                              --
 --                                                                          --
---                     Copyright (C) 2000-2018, AdaCore                     --
+--                     Copyright (C) 2000-2019, AdaCore                     --
 --                                                                          --
 --  This library is free software;  you can redistribute it and/or modify   --
 --  it under terms of the  GNU General Public License  as published by the  --
@@ -197,6 +197,15 @@ package body AWS.Config.Set is
       O.P (Down_Image).Str_Value := To_Unbounded_String (Value);
    end Down_Image;
 
+   -------------------------
+   -- Error_Log_Activated --
+   -------------------------
+
+   procedure Error_Log_Activated (O : in out Object; Value : Boolean) is
+   begin
+      O.P (Error_Log_Activated).Bool_Value := Value;
+   end Error_Log_Activated;
+
    -------------------------------
    -- Error_Log_Filename_Prefix --
    -------------------------------
@@ -298,6 +307,15 @@ package body AWS.Config.Set is
       Process_Options (Input_Line_Size_Limit).Pos_Value := Value;
    end Input_Line_Size_Limit;
 
+   ---------------
+   -- IPv6_Only --
+   ---------------
+
+   procedure IPv6_Only (O : in out Object; Value : Boolean) is
+   begin
+      O.P (IPv6_Only).Bool_Value := Value;
+   end IPv6_Only;
+
    ----------------------------
    -- Keep_Alive_Force_Limit --
    ----------------------------
@@ -324,6 +342,15 @@ package body AWS.Config.Set is
    begin
       O.P (Line_Stack_Size).Pos_Value := Value;
    end Line_Stack_Size;
+
+   -------------------
+   -- Log_Activated --
+   -------------------
+
+   procedure Log_Activated (O : in out Object; Value : Boolean) is
+   begin
+      O.P (Log_Activated).Bool_Value := Value;
+   end Log_Activated;
 
    -------------------------
    -- Log_Extended_Fields --
@@ -526,6 +553,15 @@ package body AWS.Config.Set is
       O.P (Send_Timeout).Dur_Value := Value;
    end Send_Timeout;
 
+   -------------------
+   -- Server_Header --
+   -------------------
+
+   procedure Server_Header (O : in out Object; Value : String) is
+   begin
+      O.P (Server_Header).Str_Value := To_Unbounded_String (Value);
+   end Server_Header;
+
    -----------------
    -- Server_Host --
    -----------------
@@ -717,6 +753,15 @@ package body AWS.Config.Set is
       O.P (Upload_Size_Limit).Pos_Value := Value;
    end Upload_Size_Limit;
 
+   ----------------
+   -- User_Agent --
+   ----------------
+
+   procedure User_Agent (Value : String) is
+   begin
+      Process_Options (User_Agent).Str_Value := +Value;
+   end User_Agent;
+
    ----------------------------------
    -- WebSocket_Message_Queue_Size --
    ----------------------------------
@@ -747,6 +792,15 @@ package body AWS.Config.Set is
    begin
       Process_Options (WebSocket_Priority).Nat_Value := Value;
    end WebSocket_Priority;
+
+   ---------------------------------------
+   -- WebSocket_Send_Message_Queue_Size --
+   ---------------------------------------
+
+   procedure WebSocket_Send_Message_Queue_Size (Value : Positive) is
+   begin
+      Process_Options (WebSocket_Send_Message_Queue_Size).Pos_Value := Value;
+   end WebSocket_Send_Message_Queue_Size;
 
    -----------------------
    -- WebSocket_Timeout --

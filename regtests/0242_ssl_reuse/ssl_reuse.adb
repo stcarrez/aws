@@ -151,6 +151,12 @@ procedure SSL_Reuse is
             Text_IO.Put_Line ("!!! Session not reused");
          end if;
 
+         if Net.SSL.Session_Id_Image (Sessions (J)) = Client.Session_Id_Image
+           and then not Client.Session_Reused
+         then
+            Text_IO.Put_Line ("!!! Session reused");
+         end if;
+
          Client.Shutdown;
       end loop;
    end Create_Reuse_Sessions;
@@ -176,7 +182,10 @@ begin
 
    Server_Side.Started;
 
-   Net.SSL.Initialize (Config, "", Ticket_Support => False);
+   Net.SSL.Initialize
+     (Config, "", Ticket_Support => False, Security_Mode => Net.SSL.TLSv1_2);
+   --  TLS 1.3 in GNUTLS has some difference with session resumption mechanism
+
    Client.Set_Config (Config);
 
    Text_IO.Put_Line ("Sessions creation no tickets no reuse");
@@ -189,7 +198,9 @@ begin
    Text_IO.Put_Line (Net.SSL.Session_Cache_Number (SrvCfg)'Img);
 
    Net.SSL.Release (Config);
-   Net.SSL.Initialize (Config, "", Ticket_Support => True);
+   Net.SSL.Initialize
+     (Config, "", Ticket_Support => True, Security_Mode => Net.SSL.TLSv1_2);
+   --  TLS 1.3 in GNUTLS has some difference with session resumption mechanism
    Client.Set_Config (Config);
 
    Text_IO.Put_Line ("Sessions creation client tickets");
@@ -198,7 +209,9 @@ begin
    Text_IO.Put_Line (Net.SSL.Session_Cache_Number (SrvCfg)'Img);
 
    Net.SSL.Release (Config);
-   Net.SSL.Initialize (Config, "", Ticket_Support => False);
+   Net.SSL.Initialize
+     (Config, "", Ticket_Support => False, Security_Mode => Net.SSL.TLSv1_2);
+   --  TLS 1.3 in GNUTLS has some difference with session resumption mechanism
    Client.Set_Config (Config);
 
    Client.Connect (Server.Get_Addr, Server.Get_Port);

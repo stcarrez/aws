@@ -1,6 +1,6 @@
 
                             A W S - Ada Web Server
-                                19.0 release
+                                20.0 release
 
 Authors:
    Dmitriy Anisimkov
@@ -40,6 +40,8 @@ to work properly. Of course we try to avoid this as much as possible
 but we really prefer to have a clean API instead of keeping awkward
 implementations.
 
+- New parameter IPv6_Only in the Bind routine of the AWS.Net.Socket_Type
+  hierarhy. If user code has the Bind overriden, this parameter must be added.
 
 Obsolescent features
 --------------------
@@ -78,11 +80,11 @@ XML/Ada (optional):
 
 OpenSSL (optional):
 
-   You need to install manually the development libraries.
+   You need to install manually the development libraries (>= 1.0.2).
 
 LibreSSL (optional):
 
-   You need to install manually the development libraries (>= 2.4.4).
+   You need to install manually the development libraries (>= 2.8.0).
    LibreSSL is an implementation fully compatible with OpenSSL, you
    just have to configure AWS as with OpenSSL.
 

@@ -1,7 +1,7 @@
 ------------------------------------------------------------------------------
 --                              Ada Web Server                              --
 --                                                                          --
---                     Copyright (C) 2000-2017, AdaCore                     --
+--                     Copyright (C) 2000-2018, AdaCore                     --
 --                                                                          --
 --  This library is free software;  you can redistribute it and/or modify   --
 --  it under terms of the  GNU General Public License  as published by the  --
@@ -39,6 +39,7 @@ with AWS.MIME;
 with AWS.Net.Buffered;
 with AWS.Net.SSL;
 with AWS.Translator;
+with AWS.URL.Set;
 
 package body AWS.Client is
 
@@ -163,7 +164,7 @@ package body AWS.Client is
       --  we connect to the Web server.
 
       if URL.Host (Host_URL) = "" then
-         raise URL.URL_Error with "wrong host specififed or missing protocol.";
+         raise URL.URL_Error with "wrong host specified or missing protocol.";
       end if;
 
       if Proxy = No_Data then
@@ -207,7 +208,7 @@ package body AWS.Client is
 
          if Connection.Default_SSL_Config then
             Net.SSL.Initialize
-              (Connection.SSL_Config, Certificate, Net.SSL.SSLv23_Client);
+              (Connection.SSL_Config, Certificate, Net.SSL.TLS_Client);
          else
             Connection.SSL_Config := SSL_Config;
          end if;
@@ -256,12 +257,14 @@ package body AWS.Client is
       Proxy_User : String          := No_Data;
       Proxy_Pwd  : String          := No_Data;
       Timeouts   : Timeouts_Values := No_Timeout;
-      Headers    : Header_List     := Empty_Header_List) return Response.Data
+      Headers    : Header_List     := Empty_Header_List;
+      User_Agent : String          := Default.User_Agent) return Response.Data
    is
    begin
       return Delete
         (URL, Translator.To_Stream_Element_Array (Data),
-         User, Pwd, Proxy, Proxy_User, Proxy_Pwd, Timeouts, Headers);
+         User, Pwd, Proxy, Proxy_User, Proxy_Pwd, Timeouts,
+         Headers, User_Agent);
    end Delete;
 
    function Delete
@@ -273,7 +276,8 @@ package body AWS.Client is
       Proxy_User : String          := No_Data;
       Proxy_Pwd  : String          := No_Data;
       Timeouts   : Timeouts_Values := No_Timeout;
-      Headers    : Header_List     := Empty_Header_List) return Response.Data
+      Headers    : Header_List     := Empty_Header_List;
+      User_Agent : String          := Default.User_Agent) return Response.Data
    is
       Connection : HTTP_Connection;
       Result     : Response.Data;
@@ -281,7 +285,8 @@ package body AWS.Client is
       Create (Connection,
               URL, User, Pwd, Proxy, Proxy_User, Proxy_Pwd,
               Persistent => False,
-              Timeouts   => Timeouts);
+              Timeouts   => Timeouts,
+              User_Agent => User_Agent);
 
       Delete (Connection, Result, Data, Headers => Headers);
       Close (Connection);
@@ -381,12 +386,14 @@ package body AWS.Client is
       Data_Range         : Content_Range   := No_Range;
       Follow_Redirection : Boolean         := False;
       Certificate        : String          := Default.Client_Certificate;
-      Headers            : Header_List     := Empty_Header_List)
+      Headers            : Header_List     := Empty_Header_List;
+      User_Agent         : String          := Default.User_Agent)
       return Response.Data
    is
       use type Messages.Status_Code;
 
-      Result : Response.Data;
+      Result   : Response.Data;
+      Host_URL : AWS.URL.Object;
    begin
       declare
          Connection : HTTP_Connection;
@@ -395,7 +402,10 @@ package body AWS.Client is
                  URL, User, Pwd, Proxy, Proxy_User, Proxy_Pwd,
                  Persistent  => False,
                  Certificate => Certificate,
-                 Timeouts    => Timeouts);
+                 Timeouts    => Timeouts,
+                 User_Agent  => User_Agent);
+
+         Host_URL := Connection.Host_URL; -- For the redirection case
 
          Get (Connection, Result,
               Data_Range => Data_Range, Headers => Headers);
@@ -413,21 +423,41 @@ package body AWS.Client is
          if Follow_Redirection and then SC = Messages.S305 then
             --  This is "Use Proxy" message, Location point to the proxy to
             --  use. We do not have the login/password for the proxy.
+
             return Get
               (URL, User, Pwd, Response.Location (Result),
                Timeouts           => Timeouts,
                Follow_Redirection => Follow_Redirection,
-               Certificate        => Certificate);
+               Certificate        => Certificate,
+               Headers            => Headers,
+               User_Agent         => User_Agent);
 
          elsif Follow_Redirection
            and then SC in Messages.Redirection
            and then SC /= Messages.S300 -- multiple choices
            and then SC /= Messages.S304 -- not modified, no redirection
          then
-            return Get
-              (Response.Location (Result), User, Pwd,
-               Proxy, Proxy_User, Proxy_Pwd, Timeouts,
-               Data_Range, Follow_Redirection, Certificate => Certificate);
+            declare
+               use AWS.URL;
+               Location : AWS.URL.Object :=
+                            AWS.URL.Parse (Response.Location (Result));
+            begin
+               if Host (Location) = "" then
+                  Set.Connection_Data
+                    (Location,
+                     Host (Host_URL),
+                     Port (Host_URL),
+                     Security (Host_URL));
+               end if;
+
+               return Get
+                 (AWS.URL.URL (Location), User, Pwd,
+                  Proxy, Proxy_User, Proxy_Pwd, Timeouts,
+                  Data_Range, Follow_Redirection,
+                  Certificate => Certificate,
+                  Headers     => Headers,
+                  User_Agent  => User_Agent);
+            end;
          else
             return Result;
          end if;
@@ -492,7 +522,8 @@ package body AWS.Client is
       Proxy_User : String          := No_Data;
       Proxy_Pwd  : String          := No_Data;
       Timeouts   : Timeouts_Values := No_Timeout;
-      Headers    : Header_List     := Empty_Header_List)
+      Headers    : Header_List     := Empty_Header_List;
+      User_Agent : String          := Default.User_Agent)
       return Response.Data
    is
       Connection : HTTP_Connection;
@@ -501,7 +532,8 @@ package body AWS.Client is
       Create (Connection,
               URL, User, Pwd, Proxy, Proxy_User, Proxy_Pwd,
               Persistent => False,
-              Timeouts   => Timeouts);
+              Timeouts   => Timeouts,
+              User_Agent => User_Agent);
 
       Head (Connection, Result, Headers => Headers);
       Close (Connection);
@@ -554,7 +586,9 @@ package body AWS.Client is
       Proxy_Pwd    : String          := No_Data;
       Timeouts     : Timeouts_Values := No_Timeout;
       Attachments  : Attachment_List := Empty_Attachment_List;
-      Headers      : Header_List     := Empty_Header_List) return Response.Data
+      Headers      : Header_List     := Empty_Header_List;
+      User_Agent   : String          := Default.User_Agent)
+      return Response.Data
    is
       Connection : HTTP_Connection;
       Result     : Response.Data;
@@ -562,7 +596,8 @@ package body AWS.Client is
       Create (Connection,
               URL, User, Pwd, Proxy, Proxy_User, Proxy_Pwd,
               Persistent => False,
-              Timeouts   => Timeouts);
+              Timeouts   => Timeouts,
+              User_Agent => User_Agent);
 
       Post (Connection, Result, Data, Content_Type,
             Attachments => Attachments,
@@ -587,7 +622,9 @@ package body AWS.Client is
       Proxy_Pwd    : String          := No_Data;
       Timeouts     : Timeouts_Values := No_Timeout;
       Attachments  : Attachment_List := Empty_Attachment_List;
-      Headers      : Header_List     := Empty_Header_List) return Response.Data
+      Headers      : Header_List     := Empty_Header_List;
+      User_Agent   : String          := Default.User_Agent)
+      return Response.Data
    is
       Connection : HTTP_Connection;
       Result     : Response.Data;
@@ -595,7 +632,8 @@ package body AWS.Client is
       Create (Connection,
               URL, User, Pwd, Proxy, Proxy_User, Proxy_Pwd,
               Persistent => False,
-              Timeouts   => Timeouts);
+              Timeouts   => Timeouts,
+              User_Agent => User_Agent);
 
       Post (Connection, Result, Data, Content_Type,
             Attachments => Attachments,
@@ -666,7 +704,8 @@ package body AWS.Client is
       Proxy_User : String          := No_Data;
       Proxy_Pwd  : String          := No_Data;
       Timeouts   : Timeouts_Values := No_Timeout;
-      Headers    : Header_List     := Empty_Header_List) return Response.Data
+      Headers    : Header_List     := Empty_Header_List;
+      User_Agent : String          := Default.User_Agent) return Response.Data
    is
       Connection : HTTP_Connection;
       Result     : Response.Data;
@@ -674,7 +713,8 @@ package body AWS.Client is
       Create (Connection,
               URL, User, Pwd, Proxy, Proxy_User, Proxy_Pwd,
               Persistent => False,
-              Timeouts   => Timeouts);
+              Timeouts   => Timeouts,
+              User_Agent => User_Agent);
 
       Put (Connection, Result, Data, Headers => Headers);
       Close (Connection);
@@ -1029,7 +1069,8 @@ package body AWS.Client is
       Proxy_Pwd   : String          := No_Data;
       Timeouts    : Timeouts_Values := No_Timeout;
       Attachments : Attachment_List := Empty_Attachment_List;
-      Headers     : Header_List     := Empty_Header_List) return Response.Data
+      Headers     : Header_List     := Empty_Header_List;
+      User_Agent  : String          := Default.User_Agent) return Response.Data
    is
       Connection : HTTP_Connection;
       Result     : Response.Data;
@@ -1037,7 +1078,8 @@ package body AWS.Client is
       Create (Connection,
               URL, User, Pwd, Proxy, Proxy_User, Proxy_Pwd,
               Persistent => False,
-              Timeouts   => Timeouts);
+              Timeouts   => Timeouts,
+              User_Agent => User_Agent);
 
       SOAP_Post (Connection, Result, SOAPAction,
                  Data        => Data,
@@ -1152,10 +1194,11 @@ package body AWS.Client is
       function Content_Length return Stream_Element_Offset is
       begin
          return 2 * Boundary'Length  -- 2 boundaries
-           + 2                       -- second one end with "--"
+           + 4                       -- two boundaries start with "--"
+           + 2                       -- second one ends with "--"
            + 10                      -- 5 lines with CR+LF
-           + CT'Length               -- content length header
-           + CD'Length               -- content disposition head
+           + CT'Length               -- content type header
+           + CD'Length               -- content disposition header
            + File_Size
            + 2;                      -- CR+LF after file data
       end Content_Length;
@@ -1277,7 +1320,8 @@ package body AWS.Client is
       Timeouts   : Timeouts_Values := No_Timeout;
       Headers    : Header_List     := Empty_Header_List;
       Progress   : access procedure
-        (Total, Sent : Stream_Element_Offset) := null) return Response.Data
+        (Total, Sent : Stream_Element_Offset) := null;
+      User_Agent : String          := Default.User_Agent) return Response.Data
    is
       Connection : HTTP_Connection;
       Result     : Response.Data;
@@ -1285,7 +1329,8 @@ package body AWS.Client is
       Create (Connection,
               URL, User, Pwd, Proxy, Proxy_User, Proxy_Pwd,
               Persistent => False,
-              Timeouts   => Timeouts);
+              Timeouts   => Timeouts,
+              User_Agent => User_Agent);
 
       Upload
         (Connection, Result, Filename,

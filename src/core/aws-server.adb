@@ -1,7 +1,7 @@
 ------------------------------------------------------------------------------
 --                              Ada Web Server                              --
 --                                                                          --
---                     Copyright (C) 2000-2018, AdaCore                     --
+--                     Copyright (C) 2000-2019, AdaCore                     --
 --                                                                          --
 --  This library is free software;  you can redistribute it and/or modify   --
 --  it under terms of the  GNU General Public License  as published by the  --
@@ -132,10 +132,12 @@ package body AWS.Server is
       Host          : String;
       Port          : Natural;
       Family        : Net.Family_Type := Net.Family_Unspec;
-      Reuse_Address : Boolean         := False) is
+      Reuse_Address : Boolean         := False;
+      IPv6_Only     : Boolean         := False) is
    begin
       Net.Acceptors.Add_Listening
-        (Web_Server.Acceptor, Host, Port, Family, Reuse_Address);
+        (Web_Server.Acceptor, Host, Port, Family, IPv6_Only => IPv6_Only,
+         Reuse_Address => Reuse_Address);
    end Add_Listening;
 
    ------------
@@ -270,9 +272,12 @@ package body AWS.Server is
    end Give_Back_Socket;
 
    procedure Give_Back_Socket
-     (Web_Server : in out HTTP; Socket : Net.Socket_Type'Class) is
+     (Web_Server : in out HTTP; Socket : Net.Socket_Type'Class)
+   is
+      S : constant not null Net.Socket_Access :=
+            new Net.Socket_Type'Class'(Socket);
    begin
-      Give_Back_Socket (Web_Server, new Net.Socket_Type'Class'(Socket));
+      Give_Back_Socket (Web_Server, S);
    end Give_Back_Socket;
 
    ----------
@@ -421,7 +426,7 @@ package body AWS.Server is
    procedure Set_Security
      (Web_Server           : in out HTTP;
       Certificate_Filename : String;
-      Security_Mode        : Net.SSL.Method := Net.SSL.SSLv23_Server;
+      Security_Mode        : Net.SSL.Method := Net.SSL.TLS_Server;
       Key_Filename         : String         := "") is
    begin
       AWS.Config.Set.Certificate (Web_Server.Properties, Certificate_Filename);
@@ -1095,7 +1100,8 @@ package body AWS.Server is
            CNF.Keep_Alive_Force_Limit (Web_Server.Properties),
          Close_Length        =>
            CNF.Keep_Alive_Close_Limit (Web_Server.Properties),
-         Reuse_Address       => CNF.Reuse_Address (Web_Server.Properties));
+         Reuse_Address       => CNF.Reuse_Address (Web_Server.Properties),
+         IPv6_Only           => CNF.IPv6_Only (Web_Server.Properties));
 
       --  Clone main dispatcher
 
@@ -1174,6 +1180,22 @@ package body AWS.Server is
 
       if SC = 1 then
          First_Server.all;
+      end if;
+
+      --  Activate log if requested
+
+      if CNF.Log_Activated (Web_Server.Properties) then
+         Log.Start
+           (Web_Server,
+            Split_Mode => AWS.Log.Split_Mode'Value
+              (CNF.Log_Split_Mode (Web_Server.Properties)));
+      end if;
+
+      if CNF.Error_Log_Activated (Web_Server.Properties) then
+         Log.Start_Error
+           (Web_Server,
+            Split_Mode => AWS.Log.Split_Mode'Value
+              (CNF.Error_Log_Split_Mode (Web_Server.Properties)));
       end if;
    end Start;
 

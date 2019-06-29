@@ -869,17 +869,24 @@ Current supported options are:
   The name of the down arrow image to use in the status page. The default is
   |DOWN_IMAGE|.
 
+*Error_Log_Activated (boolean)*
+
+  .. index:: Error_Log_Activated
+
+  A boolean to enable or disable the error log. By default the
+  error log activation is set to |ERROR_LOG_ACTIVATED|.
+
 *Error_Log_Filename_Prefix (string)*
 
-  .. index:: Log_Filename_Prefix
+  .. index:: Error_Log_Filename_Prefix
 
-  This is to set the filename prefix for the log file. By default the
-  log filename prefix is the program name (without extension) followed
-  by "_error".
+  This is to set the filename prefix for the error log file. By
+  default the error log filename prefix is the program name (without
+  extension) followed by "_error".
 
 *Error_Log_Split_Mode [None/Each_Run/Daily/Monthly]*
 
-  .. index:: Log_Split_Mode
+  .. index:: Error_Log_Split_Mode
 
   It indicates how to split the error logs. Each_Run means that a new log file
   is used each time the process is started. Daily and Monthly will use a
@@ -966,6 +973,13 @@ Current supported options are:
   The HTTP lines stack size. The stack size must be adjusted for each
   applications depending on the use of the stack done by the callback
   procedures. The default is |LINE_STACK_SIZE|.
+
+*Log_Activated (boolean)*
+
+  .. index:: Log_Activated
+
+  A boolean to enable or disable the standard log. By default the
+  standard log activation is set to |LOG_ACTIVATED|.
 
 *Log_Extended_Fields (string list)*
 
@@ -1098,6 +1112,14 @@ Current supported options are:
 
   Number of seconds to timeout when sending chunk of data. The default is
   |SEND_TIMEOUT| seconds.
+
+*Server_Header (string)*
+
+  .. index:: Server_Header
+
+  The value to be used for the HTTP Server header. The default is
+  |SERVER_HEADER|. If the value is set to the empty string, the server
+  header is not sent.
 
 *Server_Host (string)*
 
@@ -1240,6 +1262,14 @@ Current supported options are:
   This is to set the directory where upload files must be stored. By
   default uploaded files are written in the current directory. The
   default is |UPLOAD_DIR|.
+
+*User_Agent (string)*
+
+  .. index:: User_Agent
+
+  The value to be used for the HTTP User_Agent header. The default value
+  is |USER_AGENT|. If the value is set to the empty string, the User_Agent
+  header is not sent.
 
 *WebSocket_Message_Queue_Size (positive)*
 

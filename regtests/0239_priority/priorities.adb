@@ -68,7 +68,15 @@ procedure Priorities is
    Previous_Chipher : ASU.Unbounded_String;
 
    Ciphers : ASU.Unbounded_String :=
-               To_Unbounded_String (if GNUTLS then "NORMAL" else "DEFAULT");
+               To_Unbounded_String
+                 (if GNUTLS
+                  then "NORMAL"
+                       & (if Net.SSL.Version > "GNUTLS 3.6.3"
+                          then ":-VERS-TLS1.3" else "")
+                  else "DEFAULT");
+   --  TLS 1.3 gives no informative error message in GNUTLS 3.6.4:
+   --  "The TLS connection was non-properly terminated."
+   --  It say nothing about lack of common ciphers.
 
    task Server_Task is
       entry Start;
@@ -78,6 +86,10 @@ procedure Priorities is
 
    procedure Print (Text : String);
    --  Prints only in Verbose mode
+
+   procedure Send_Stop_To_Server;
+   --  Send the last message to server side. Server will stop accepting
+   --  connections after that and terminate server task.
 
    -----------
    -- Error --
@@ -107,12 +119,18 @@ procedure Priorities is
 
    function Is_Handshake_Error (Text : String) return Boolean is
    begin
-      return Text = "No or insufficient priorities were set."
-        or else Text = "No supported cipher suites have been found."
-        or else Text = "error:1408A0C1:SSL routines:ssl3_get_client_hello:"
-                       & "no shared cipher"
-        or else Text = "14077410:SSL routines:SSL23_GET_SERVER_HELLO:"
-                       & "sslv3 alert handshake failure";
+      return Text in "No or insufficient priorities were set."
+        | "error:1408A0C1:lib(20):func(138):reason(193)"
+        | "No supported cipher suites have been found."
+        | "error:1408A0C1:SSL routines:ssl3_get_client_hello:no shared cipher"
+        | "error:1417A0C1:SSL routines:tls_post_process_client_hello:no shared"
+          & " cipher"
+        | "14077410:SSL routines:SSL23_GET_SERVER_HELLO:sslv3 alert handshake"
+          & " failure"
+        | "14094410:SSL routines:ssl3_read_bytes:sslv3 alert handshake"
+          & " failure"
+        | "14004410:SSL routines:CONNECT_CR_SRVR_HELLO:sslv3 alert handshake"
+          & " failure";
    end Is_Handshake_Error;
 
    -----------
@@ -188,6 +206,27 @@ procedure Priorities is
          Put_Line ("Server task " & Ada.Exceptions.Exception_Information (E));
    end Server_Task;
 
+   Host : constant String := Net.Localhost (Net.IPv6_Available);
+   Port : Natural := 0;
+
+   -------------------------
+   -- Send_Stop_To_Server --
+   -------------------------
+
+   procedure Send_Stop_To_Server is
+   begin
+      Net.SSL.Initialize
+        (Config               => Config,
+         Certificate_Filename => "aws-client.pem",
+         Trusted_CA_Filename  => "private-ca.crt");
+
+      Client.Set_Config (Config);
+      Client.Connect (Host, Port);
+      Client.Send (Latest);
+      Client.Shutdown;
+      Net.SSL.Release (Config);
+   end Send_Stop_To_Server;
+
 begin
    Net.Log.Start (Error => Error'Unrestricted_Access, Write => null);
 
@@ -199,21 +238,29 @@ begin
    Print (Net.SSL.Version);
 
    Server_Task.Start;
+   Port := Server.Get_Port;
 
    loop
-      Net.SSL.Initialize
-        (Config               => Config,
-         Priorities           => To_String (Ciphers),
-         Certificate_Filename => "aws-client.pem",
-         Trusted_CA_Filename  => "private-ca.crt");
+      begin
+         Net.SSL.Initialize
+           (Config               => Config,
+            Priorities           => To_String (Ciphers),
+            Certificate_Filename => "aws-client.pem",
+            Trusted_CA_Filename  => "private-ca.crt");
+      exception
+         when E : Net.Socket_Error =>
+            if Is_Handshake_Error (Ada.Exceptions.Exception_Message (E)) then
+               Send_Stop_To_Server;
+               exit;
+            end if;
+
+            raise;
+      end;
 
       Client.Set_Config (Config);
 
       Client.Set_Timeout (1.0);
 
-      declare
-         Host : constant String := Net.Localhost (Net.IPv6_Available);
-         Port : constant Positive := Server.Get_Port;
       begin
          Client.Connect (Host, Port);
          Client.Send (Sample);
@@ -223,16 +270,7 @@ begin
             Net.SSL.Release (Config);
 
             if Is_Handshake_Error (Ada.Exceptions.Exception_Message (E)) then
-               Net.SSL.Initialize
-                 (Config               => Config,
-                  Certificate_Filename => "aws-client.pem",
-                  Trusted_CA_Filename  => "private-ca.crt");
-
-               Client.Set_Config (Config);
-               Client.Connect (Host, Port);
-               Client.Send (Latest);
-               Client.Shutdown;
-               Net.SSL.Release (Config);
+               Send_Stop_To_Server;
                exit;
             else
                raise;
@@ -255,7 +293,8 @@ begin
       Net.SSL.Release (Config);
    end loop;
 
-   Print ("Total disabled chipers" & Counter'Img);
+   Print
+     ("Total disabled chipers" & Counter'Img & ASCII.LF & To_String (Ciphers));
 
    if Counter < 4 then
       Put_Line ("Too few iterations"  & Counter'Img);
@@ -263,5 +302,7 @@ begin
 
 exception
    when E : others =>
-      Put_Line ("Main task " & Ada.Exceptions.Exception_Information (E));
+      Put_Line
+        ("Main task " & Ada.Exceptions.Exception_Information (E) & ASCII.LF
+         & To_String (Ciphers));
 end Priorities;

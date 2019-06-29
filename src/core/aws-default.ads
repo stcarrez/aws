@@ -1,7 +1,7 @@
 ------------------------------------------------------------------------------
 --                              Ada Web Server                              --
 --                                                                          --
---                     Copyright (C) 2000-2018, AdaCore                     --
+--                     Copyright (C) 2000-2019, AdaCore                     --
 --                                                                          --
 --  This library is free software;  you can redistribute it and/or modify   --
 --  it under terms of the  GNU General Public License  as published by the  --
@@ -55,48 +55,54 @@ package AWS.Default with Pure is
 
    --  Server configuration
 
-   Server_Name                     : constant String   := "AWS Module";
-   WWW_Root                        : constant String   := "./";
-   Admin_URI                       : constant String   := "";
-   Admin_Password                  : constant String   := "";
-   Admin_Realm                     : constant String   := "AWS Admin Page";
-   Protocol_Family                 : constant String   := "FAMILY_UNSPEC";
-   Server_Port                     : constant          := 8080;
-   Hotplug_Port                    : constant          := 8888;
-   Max_Connection                  : constant          := 5;
-   Max_WebSocket_Handler           : constant          := 2;
-   Max_WebSocket                   : constant          := 512;
-   WebSocket_Message_Queue_Size    : constant          := 10;
-   WebSocket_Timeout               : constant Duration := Eight_Hours;
-   Send_Buffer_Size                : constant          := 0;
-   TCP_No_Delay                    : constant Boolean  := False;
-   Free_Slots_Keep_Alive_Limit     : constant          := 1;
-   Keep_Alive_Force_Limit          : constant          := 0;
-   Keep_Alive_Close_Limit          : constant          := 0;
-   Accept_Queue_Size               : constant          := 64;
-   Upload_Directory                : constant String   := "";
-   Upload_Size_Limit               : constant          := 16#500_000#;
-   Line_Stack_Size                 : constant          := 16#150_000#;
-   Case_Sensitive_Parameters       : constant Boolean  := True;
-   Input_Line_Size_Limit           : constant          := 16#4000#;
-   Max_POST_Parameters             : constant          := 100;
-   Max_Concurrent_Download         : constant          := 25;
-   Reuse_Address                   : constant Boolean  := False;
-   MIME_Types                      : constant String   := "aws.mime";
+   Server_Name                       : constant String   := "AWS Module";
+   WWW_Root                          : constant String   := "./";
+   Admin_URI                         : constant String   := "";
+   Admin_Password                    : constant String   := "";
+   Admin_Realm                       : constant String   := "AWS Admin Page";
+   Protocol_Family                   : constant String   := "FAMILY_UNSPEC";
+   IPv6_Only                         : constant Boolean  := False;
+   Server_Port                       : constant          := 8080;
+   Hotplug_Port                      : constant          := 8888;
+   Max_Connection                    : constant          := 5;
+   Max_WebSocket_Handler             : constant          := 2;
+   Max_WebSocket                     : constant          := 512;
+   WebSocket_Message_Queue_Size      : constant          := 10;
+   WebSocket_Send_Message_Queue_Size : constant          := 30;
+   WebSocket_Timeout                 : constant Duration := Eight_Hours;
+   Send_Buffer_Size                  : constant          := 0;
+   TCP_No_Delay                      : constant Boolean  := False;
+   Free_Slots_Keep_Alive_Limit       : constant          := 1;
+   Keep_Alive_Force_Limit            : constant          := 0;
+   Keep_Alive_Close_Limit            : constant          := 0;
+   Accept_Queue_Size                 : constant          := 64;
+   Upload_Directory                  : constant String   := "";
+   Upload_Size_Limit                 : constant          := 16#500_000#;
+   Line_Stack_Size                   : constant          := 16#150_000#;
+   Case_Sensitive_Parameters         : constant Boolean  := True;
+   Input_Line_Size_Limit             : constant          := 16#4000#;
+   Max_POST_Parameters               : constant          := 100;
+   Max_Concurrent_Download           : constant          := 25;
+   Reuse_Address                     : constant Boolean  := False;
+   MIME_Types                        : constant String   := "aws.mime";
 
    --  Client configuration
 
    User_Agent                      : constant String :=
                                        "AWS (Ada Web Server) v" & Version;
+   Server_Header                   : constant String :=
+                                       User_Agent;
 
    --  Log values. The character '@' in the error log filename prefix is
    --  replaced by the running program name.
 
+   Log_Activated                   : constant Boolean := False;
    Log_File_Directory              : constant String := "./";
 
    Log_Split_Mode                  : constant String := "NONE";
    Log_Filename_Prefix             : constant String := "@";
 
+   Error_Log_Activated             : constant Boolean := False;
    Error_Log_Split_Mode            : constant String := "NONE";
    Error_Log_Filename_Prefix       : constant String := "@_error";
 
@@ -149,7 +155,7 @@ package AWS.Default with Pure is
    --  Security
 
    Security                        : constant Boolean := False;
-   Security_Mode                   : constant String  := "SSLv23";
+   Security_Mode                   : constant String  := "TLS";
    Config_Directory                : constant String  := ".config/ada-web-srv";
    Cipher_Priorities               : constant String  := "";
    TLS_Ticket_Support              : constant Boolean := False;

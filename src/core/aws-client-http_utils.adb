@@ -187,9 +187,13 @@ package body AWS.Client.HTTP_Utils is
             URI    => "/",
             Method => "CONNECT");
 
-         Send_Header
-           (Sock.all,
-            Messages.User_Agent (To_String (Connection.User_Agent)));
+         declare
+            User_Agent : constant String := To_String (Connection.User_Agent);
+         begin
+            if User_Agent /= "" then
+               Send_Header (Sock.all, Messages.User_Agent (User_Agent));
+            end if;
+         end;
 
          --  Empty line to terminate the connect
 
@@ -745,7 +749,12 @@ package body AWS.Client.HTTP_Utils is
               (Sock.all, Method & ' ' & Encoded_URI & ' ' & HTTP_Version);
          end if;
 
-         Send_Header (Sock.all, Messages.Connection (Persistence));
+         --  Unless Header already contains connection info (like would be
+         --  the case for web sockets for instance)
+
+         if not Header.Exist (Messages.Connection_Token) then
+            Send_Header (Sock.all, Messages.Connection (Persistence));
+         end if;
 
       else
          --  We have a proxy configured, in thoses case we want to send the
@@ -783,6 +792,12 @@ package body AWS.Client.HTTP_Utils is
 
       AWS.Headers.Send_Header (Sock.all, Header);
 
+      if Debug_On then
+         for J in 1 .. Header.Count loop
+            Debug_Message ("> ", Header.Get_Line (J));
+         end loop;
+      end if;
+
       --  Cookie
 
       if Connection.Cookie /= No_Data then
@@ -801,16 +816,21 @@ package body AWS.Client.HTTP_Utils is
 
       Send_Header
         (Sock.all, Messages.Accept_Encoding_Token,
-         Messages.Accept_Encoding'Access, "deflate, gzip", Header);
+         Messages.Accept_Encoding'Access, "gzip, deflate", Header);
 
       Send_Header
         (Sock.all, Messages.Accept_Language_Token,
          Messages.Accept_Language'Access, "fr, ru, us", Header);
 
-      Send_Header
-        (Sock.all, Messages.User_Agent_Token,
-         Messages.User_Agent'Access,
-         To_String (Connection.User_Agent), Header);
+      declare
+         User_Agent : constant String := To_String (Connection.User_Agent);
+      begin
+         if User_Agent /= "" then
+            Send_Header
+              (Sock.all, Messages.User_Agent_Token,
+               Messages.User_Agent'Access, User_Agent, Header);
+         end if;
+      end;
 
       if Connection.Data_Range /= No_Range then
          Send_Header
@@ -1354,7 +1374,9 @@ package body AWS.Client.HTTP_Utils is
          Sock : Net.Socket_Type'Class renames Connection.Socket.all;
       begin
          if Content_Type /= Client.No_Data then
-            Send_Header (Sock, Messages.Content_Type (Content_Type));
+            Send_Header
+              (Sock, Messages.Content_Type_Token,
+               Messages.Content_Type'Access, Content_Type, Headers);
          end if;
 
          if SOAPAction /= Client.No_Data then
