@@ -49,6 +49,24 @@ MAKE_OPT	= -s
 BDIR		= $(BROOTDIR)/$(TARGET)/release
 endif
 
+# Target dir
+
+ifeq ($(ISOOT), true)
+OOTDIR := /$(TARGET)
+else
+OOTDIR := /$(TARGET)
+endif
+
+# Add path to generated project files
+export GPR_PROJECT_PATH := $(PRJ_DIR)$(PSEP)$(GPR_PROJECT_PATH)
+
+LIBAWS_TYPES := static
+
+ifeq (${ENABLE_SHARED},true)
+   LIBAWS_TYPES += relocatable static-pic
+>>>>>>> c1c8c38de (Avoid the unfortunate GNATcoll dependency)
+endif
+
 #############################################################################
 #  NO NEED TO CHANGE ANYTHING PAST THIS POINT
 #############################################################################
