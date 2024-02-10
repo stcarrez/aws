@@ -172,7 +172,7 @@ void __aws_EVP_MD_CTX_free(EVP_MD_CTX *ctx)
   EVP_MD_CTX_destroy(ctx);
 }
 
-bool __aws_gnatcoll_sync_bool_compare_and_swap_access
+int __aws_gnatcoll_sync_bool_compare_and_swap_access
     (void** ptr, void* oldval, void* newval)
 {
 
