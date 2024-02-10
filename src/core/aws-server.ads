@@ -46,7 +46,7 @@ private with Ada.Exceptions;
 private with Ada.Finalization;
 private with Ada.Task_Attributes;
 private with Ada.Real_Time;
-private with GNATCOLL.Refcount;
+private with AWS.Refcount;
 private with System;
 
 private with AWS.Log;
@@ -498,7 +498,7 @@ private
       Settings : aliased HTTP2.Connection.Object;
    end record;
 
-   package HTTP2_Context_References is new GNATCOLL.Refcount.Shared_Pointers
+   package HTTP2_Context_References is new AWS.Refcount.Shared_Pointers
      (HTTP2_Context);
 
    package H2CR renames HTTP2_Context_References;
