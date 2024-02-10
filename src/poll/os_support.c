@@ -54,3 +54,14 @@ __aws_clear_socket_set (fd_set *set)
 {
   FD_ZERO (set);
 }
+
+/************************************************************************
+ *  * Support for atomic operations
+ *  ************************************************************************/
+
+bool gnatcoll_sync_bool_compare_and_swap_access
+    (void** ptr, void* oldval, void* newval)
+{
+
+      return __sync_bool_compare_and_swap(ptr, oldval, newval);
+}
