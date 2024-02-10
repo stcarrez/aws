@@ -151,7 +151,7 @@ package body AWS.Atomic is
           Oldval, Newval : Element_Access) return Interfaces.Integer_8;
       pragma Import
          (Intrinsic, Intrinsic_Sync_Bool_And_Swap_Access,
-          External_Name => "gnatcoll_sync_bool_compare_and_swap_access");
+          External_Name => "__aws_gnatcoll_sync_bool_compare_and_swap_access");
    begin
       return Intrinsic_Sync_Bool_And_Swap_Access (Ptr, Oldval, Newval) /= 0;
    end Sync_Bool_Compare_And_Swap;
