@@ -39,7 +39,7 @@ private with Ada.Containers.Doubly_Linked_Lists;
 private with AWS.Client;
 private with Interfaces;
 
-with GNATCOLL.Refcount;
+with AWS.Refcount;
 
 package AWS.Net.WebSocket is
 
@@ -355,7 +355,7 @@ private
 
    overriding procedure Free (Socket : in out Object);
 
-   package Object_References is new GNATCOLL.Refcount.Shared_Pointers
+   package Object_References is new AWS.Refcount.Shared_Pointers
      (Object'Class);
 
    type Object_Class is new Object_References.Ref with null record;

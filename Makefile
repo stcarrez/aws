@@ -64,7 +64,6 @@ LIBAWS_TYPES := static
 
 ifeq (${ENABLE_SHARED},true)
    LIBAWS_TYPES += relocatable static-pic
->>>>>>> c1c8c38de (Avoid the unfortunate GNATcoll dependency)
 endif
 
 #############################################################################
