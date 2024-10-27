@@ -80,6 +80,7 @@ pragma Style_Checks ("M32766");
 #include <fcntl.h>
 #include <time.h>
 #include <errno.h>
+#include <stdint.h>
 
 #if defined(__vxworks)
 
