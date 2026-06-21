@@ -1,0 +1,66 @@
+description = "Ada Web Server"
+website = "https://github.com/adacore/aws"
+name = "aws"
+version = "25.0.0"
+authors = ["AdaCore"]
+licenses = "GPL-3.0-only WITH GCC-exception-3.1"
+maintainers = ["chouteau@adacore.com"]
+maintainers-logins = ["Fabien-Chouteau"]
+project-files = ["aws.gpr", "build/projects/aws_config.gpr"]
+tags = ["aws", "web", "server", "http", "https", "soap", "wsdl", "ssl"]
+
+[gpr-externals]
+TGT_DIR = ""
+TARGET = ""
+PRJ_TARGET = ["Windows_NT", "UNIX", "Darwin", "vxworks", "freebsd"]
+SOCKET = ["openssl", "std"]
+SSL_DYNAMIC = ["false", "true"]
+
+# aws is configured to use openssl but if the SOCKET gpr variable is not
+# defined, it will use std, make sure that by default the openssl is enabled.
+[gpr-set-externals]
+SOCKET = "openssl"
+
+[gpr-set-externals."case(os)".linux]
+PRJ_TARGET = "UNIX"
+TGT_DIR = "../build"
+TARGET = "build"
+
+[gpr-set-externals."case(os)".freebsd]
+PRJ_TARGET = "freebsd"
+TGT_DIR = "../build"
+TARGET = "build"
+
+[gpr-set-externals."case(os)".windows]
+PRJ_TARGET = "Windows_NT"
+TGT_DIR = "../build"
+TARGET = "build"
+
+[gpr-set-externals."case(os)".macos]
+PRJ_TARGET = "Darwin"
+TGT_DIR = "../build"
+TARGET = "build"
+
+# AWS makefile has several issues and the build breaks:
+# - to be able to use AWS as a library, we only need the AWS configuration files in <build>/
+# - to solve issues with names that depend on `gcc -dumpmachine`, we run the setup
+#   and move it to the fixed 'build/' directory and configure for every target to use it.
+# Note: by avoiding the AWS standard make and make install, we avoid build issues on
+# the 'awsres' tool which does not compile on most targets anyway.
+[[actions]]
+type = "post-fetch"
+command = ["sh", "-c", "make setup ZLIB=false DEMOS=false LAL=false XMLADA=true SOCKET=openssl prefix=install_dir PRJ_BUILD=Release"]
+
+[[actions]]
+type = "post-fetch"
+command = ["sh", "-c", "mv `gcc -dumpmachine`/ ./build"]
+
+[[depends-on]]
+xmlada = "~25.0.0"
+gnatcoll = "~25.0.0"
+make = "*"
+gnat = ">=12"
+openssl = ">=1.1.0"
+
+[configuration]
+disabled = true
