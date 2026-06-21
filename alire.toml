@@ -1,7 +1,7 @@
 description = "Ada Web Server"
 website = "https://github.com/adacore/aws"
 name = "aws"
-version = "25.0.0"
+version = "25.3.0"
 authors = ["AdaCore"]
 licenses = "GPL-3.0-only WITH GCC-exception-3.1"
 maintainers = ["chouteau@adacore.com"]
